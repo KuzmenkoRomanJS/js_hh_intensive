@@ -248,7 +248,7 @@ const modalHandler =  () => {
 
   let modal = null;
 //Modal windows
-resultList.addEventListener("click", (e) => {
+resultList.addEventListener("click", async (e) => {
   const target = e.target;
   if (target.dataset.vacancy) {
     e.preventDefault();
