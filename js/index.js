@@ -17,26 +17,47 @@ const resultList = document.querySelector(".result__list");
 const formSearch = document.querySelector(".bottom__search");
 const found = document.querySelector(".found");
 
+//Sorting
+const orderBy = document.querySelector("#order_by");
+const searchPeriod = document.querySelector("#search_period");
+
 // optionBtnOrder.addEventListener("contextmenu", (e) => {
 //   e.preventDefault();
 //   console.log("Клик правой кнопкой мыши");
 // });
 
+let data = [];
+
 const declOfNum = (n, titles) => {
-  return n + ' ' + titles[n % 10 === 1 && n % 100 !== 11 ?
-    0 : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 1 : 2];
-}
+  return (
+    n +
+    " " +
+    titles[
+      n % 10 === 1 && n % 100 !== 11
+        ? 0
+        : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)
+        ? 1
+        : 2
+    ]
+  );
+};
 
 //Функции
-const getData = ({ search, id } = {}) => {
+const getData = ({ search, id, country, city } = {}) => {
+  let url = `http://localhost:3000/api/vacancy/${id ? id : ""}`;
   if (search) {
-    return fetch(`http://localhost:3000/api/vacancy?search=${search}`).then(
-      (response) => response.json()
-    );
+    url = `http://localhost:3000/api/vacancy?search=${search}`;
   }
-  return fetch(`http://localhost:3000/api/vacancy/${id ? id : ''}`).then((response) =>
-    response.json()
-  );
+
+  if (city) {
+    url = `http://localhost:3000/api/vacancy?city=${city}`;
+  }
+
+  if (country) {
+    url = `http://localhost:3000/api/vacancy?country=${country}`;
+  }
+
+  return fetch(url).then((response) => response.json());
 };
 
 //Вывод карточек
@@ -88,14 +109,33 @@ const renderCards = (data) => {
   resultList.append(...cards);
 };
 
+const sortData = () => {
+  switch (orderBy.value) {
+    case "down":
+      data.sort((a, b) => (a.minCompensation > b.minCompensation ? 1 : -1));
+      break;
+    case "up":
+      data.sort((a, b) => (b.minCompensation > a.minCompensation ? 1 : -1));
+      break;
+    default:
+      data.sort((a, b) =>
+        new Date(a.date).getTime() > new Date(b.date).getTime() ? 1 : -1
+      );
+  }
+};
 
+const filterData = () => {
+  const date = new Date();
+  date.setDate(date.getDate() - searchPeriod.value);
+  return data.filter((item) => new Date(item.date).getTime() > date);
+};
 
 const optionHandler = () => {
   optionBtnOrder.addEventListener("click", () => {
     optionListOrder.classList.toggle("option__list_active");
     optionListPeriod.classList.remove("option__list_active");
   });
-  
+
   optionBtnPeriod.addEventListener("click", () => {
     optionListPeriod.classList.toggle("option__list_active");
     optionListOrder.classList.remove("option__list_active");
@@ -103,9 +143,12 @@ const optionHandler = () => {
 
   optionListOrder.addEventListener("click", (event) => {
     const target = event.target;
-  
+
     if (target.classList.contains("option__item")) {
       optionBtnOrder.textContent = target.textContent;
+      orderBy.value = target.dataset.sort;
+      sortData();
+      renderCards(data);
       optionListOrder.classList.remove("option__list_active");
       for (const elem of optionListOrder.querySelectorAll(".option__item")) {
         if (elem === target) {
@@ -116,13 +159,16 @@ const optionHandler = () => {
       }
     }
   });
-  
+
   // Home work task #1
   optionListPeriod.addEventListener("click", (event) => {
     const target = event.target;
-  
+
     if (target.classList.contains("option__item")) {
       optionBtnPeriod.textContent = target.textContent;
+      searchPeriod.value = target.dataset.date;
+      const tempData = filterData();
+      renderCards(tempData);
       optionListPeriod.classList.remove("option__list_active");
       for (const elem of optionListPeriod.querySelectorAll(".option__item")) {
         if (elem === target) {
@@ -134,29 +180,39 @@ const optionHandler = () => {
     }
   });
   // task #1 end
-}
+};
 
 const cityHandler = () => {
-//City selector
-topCityBtn.addEventListener("click", () => {
-  city.classList.toggle("city_active");
-});
+  //City selector
+  topCityBtn.addEventListener("click", () => {
+    city.classList.toggle("city_active");
+  });
 
-cityRegionList.addEventListener("click", (event) => {
-  const target = event.target;
+  cityRegionList.addEventListener("click", async (event) => {
+    const target = event.target;
 
-  if (target.classList.contains("city__link")) {
-    topCityBtn.textContent = target.textContent;
+    if (target.classList.contains("city__link")) {
+      const hash = new URL(target.href).hash.substring(1);
+      const option = {
+        [hash]: target.textContent,
+      };
+      data = await getData(option);
+      sortData();
+      //Home task #4
+      data = filterData();
+      //end task #4
+      renderCards(data);
+      topCityBtn.textContent = target.textContent;
+      city.classList.remove("city_active");
+    }
+  });
+
+  //Home task #2
+  cityClose.addEventListener("click", (event) => {
     city.classList.remove("city_active");
-  }
-});
-
-//Home task #2
-cityClose.addEventListener("click", (event) => {
-  city.classList.remove("city_active");
-});
-//end task #2
-}
+  });
+  //end task #2
+};
 
 const createModal = (data) => {
   const {
@@ -170,64 +226,64 @@ const createModal = (data) => {
     title,
   } = data;
 
-  const modal = document.createElement('div');
-  modal.classList.add('modal');
+  const modal = document.createElement("div");
+  modal.classList.add("modal");
 
-  const closeButtonElem = document.createElement('button');
-  closeButtonElem.classList.add('modal__close');
-  closeButtonElem.textContent = 'X';
-  
-  const titleElem = document.createElement('h2');
-  titleElem.classList.add('modal__title');
+  const closeButtonElem = document.createElement("button");
+  closeButtonElem.classList.add("modal__close");
+  closeButtonElem.textContent = "X";
+
+  const titleElem = document.createElement("h2");
+  titleElem.classList.add("modal__title");
   titleElem.textContent = title;
-  
-  const compensationElem = document.createElement('p');
-  compensationElem.classList.add('modal__compensation');
+
+  const compensationElem = document.createElement("p");
+  compensationElem.classList.add("modal__compensation");
   compensationElem.textContent = compensation;
-  
-  const employerElem = document.createElement('p');
-  employerElem.classList.add('modal__employer');
+
+  const employerElem = document.createElement("p");
+  employerElem.classList.add("modal__employer");
   employerElem.textContent = employer;
-  
-  const addressElem = document.createElement('p');
-  addressElem.classList.add('modal__address');
+
+  const addressElem = document.createElement("p");
+  addressElem.classList.add("modal__address");
   addressElem.textContent = address;
-  
-  const experienceElem = document.createElement('p');
-  experienceElem.classList.add('modal__experience');
+
+  const experienceElem = document.createElement("p");
+  experienceElem.classList.add("modal__experience");
   experienceElem.textContent = experience;
 
-  const employmentElem = document.createElement('p');
-  employmentElem.classList.add('modal__employment');
+  const employmentElem = document.createElement("p");
+  employmentElem.classList.add("modal__employment");
   employmentElem.textContent = employment;
-  
-  const descriptionElem = document.createElement('p');
-  descriptionElem.classList.add('modal__description');
+
+  const descriptionElem = document.createElement("p");
+  descriptionElem.classList.add("modal__description");
   descriptionElem.textContent = description;
-  
-  const skillsElem = document.createElement('div');
-  skillsElem.classList.add('modal__skills', 'skills');
-  
-  const skillsTitleElem = document.createElement('h3');
-  skillsTitleElem.classList.add('skills__title');
-  skillsTitleElem.textContent = 'Подробнее:';
-  
-  const skillsListElem = document.createElement('ul');
-  skillsListElem.classList.add('skills__list');
+
+  const skillsElem = document.createElement("div");
+  skillsElem.classList.add("modal__skills", "skills");
+
+  const skillsTitleElem = document.createElement("h3");
+  skillsTitleElem.classList.add("skills__title");
+  skillsTitleElem.textContent = "Подробнее:";
+
+  const skillsListElem = document.createElement("ul");
+  skillsListElem.classList.add("skills__list");
 
   for (const skill of skills) {
-    const skillsItemElem = document.createElement('li');
-    skillsItemElem.classList.add('skills__item');
+    const skillsItemElem = document.createElement("li");
+    skillsItemElem.classList.add("skills__item");
     skillsItemElem.textContent = skill;
     skillsListElem.append(skillsItemElem);
   }
 
-  skillsElem.append(skillsTitleElem, skillsListElem)
-  
-  const submitButtonElem = document.createElement('button');
-  submitButtonElem.add('modal__response');
-  submitButtonElem.textContent = 'Отправить резюме';
-  
+  skillsElem.append(skillsTitleElem, skillsListElem);
+
+  const submitButtonElem = document.createElement("button");
+  submitButtonElem.classList.add("modal__response");
+  submitButtonElem.textContent = "Отправить резюме";
+
   modal.append(
     closeButtonElem,
     titleElem,
@@ -238,61 +294,70 @@ const createModal = (data) => {
     employmentElem,
     descriptionElem,
     skillsElem,
-    submitButtonElem,
+    submitButtonElem
   );
 
   return modal;
 };
 
-const modalHandler =  () => {
-
+const modalHandler = () => {
   let modal = null;
-//Modal windows
-resultList.addEventListener("click", (e) => {
-  const target = e.target;
-  if (target.dataset.vacancy) {
-    e.preventDefault();
-    overlayVacancy.classList.add("overlay_active");
-    const data = await getData({id: target.dataset.vacancy});
-    modal = createModal(data);
-    overlayVacancy.append(modal);
-  }
-});
+  //Modal windows
+  resultList.addEventListener("click", async (e) => {
+    const target = e.target;
+    if (target.dataset.vacancy) {
+      e.preventDefault();
+      overlayVacancy.classList.add("overlay_active");
+      const data = await getData({ id: target.dataset.vacancy });
+      modal = createModal(data);
+      overlayVacancy.append(modal);
+    }
+  });
 
-overlayVacancy.addEventListener("click", (e) => {
-  const target = e.target;
-  if (target === overlayVacancy || target.classList.contains("modal__close")) {
-    overlayVacancy.classList.remove("overlay_active");
-    modal.remove();
-  }
-});
-}
+  overlayVacancy.addEventListener("click", (e) => {
+    const target = e.target;
+    if (
+      target === overlayVacancy ||
+      target.classList.contains("modal__close")
+    ) {
+      overlayVacancy.classList.remove("overlay_active");
+      modal.remove();
+    }
+  });
+};
 
 const searchHandler = () => {
-//Searching
-formSearch.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const textSearch = formSearch.search.value;
+  //Searching
+  formSearch.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const textSearch = formSearch.search.value;
 
-  if (textSearch.length > 2) {
-    formSearch.search.style.borderColor = "";
-
-    const data = await getData({ search: textSearch });
-    renderCards(data);
-    found.innerHTML = ` ${declOfNum(data.length, ['вакансия', 'вакансии', 'вакансий'])} &laquo; ${textSearch} &raquo;`;
-    formSearch.reset();
-  } else {
-    formSearch.search.style.borderColor = "red";
-    setTimeout(() => {
+    if (textSearch.length > 2) {
       formSearch.search.style.borderColor = "";
-    }, 2000);
-  }
-});
-}
+
+      data = await getData({ search: textSearch });
+      sortData();
+      renderCards(data);
+      found.innerHTML = ` ${declOfNum(data.length, [
+        "вакансия",
+        "вакансии",
+        "вакансий",
+      ])} &laquo; ${textSearch} &raquo;`;
+      formSearch.reset();
+    } else {
+      formSearch.search.style.borderColor = "red";
+      setTimeout(() => {
+        formSearch.search.style.borderColor = "";
+      }, 2000);
+    }
+  });
+};
 
 //Инициализация
 const init = async () => {
-  const data = await getData();
+  data = await getData();
+  sortData();
+  data = filterData();
   renderCards(data);
 
   optionHandler();
@@ -302,7 +367,6 @@ const init = async () => {
   modalHandler();
 
   searchHandler();
-
 };
 
 init();
