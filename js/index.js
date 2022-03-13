@@ -109,6 +109,12 @@ const renderCards = (data) => {
   resultList.append(...cards);
 };
 
+const filterData = () => {
+  const date = new Date();
+  date.setDate(date.getDate() - searchPeriod.value);
+  return data.filter((item) => new Date(item.date).getTime() > date);
+};
+
 const sortData = () => {
   switch (orderBy.value) {
     case "down":
@@ -122,12 +128,8 @@ const sortData = () => {
         new Date(a.date).getTime() > new Date(b.date).getTime() ? 1 : -1
       );
   }
-};
 
-const filterData = () => {
-  const date = new Date();
-  date.setDate(date.getDate() - searchPeriod.value);
-  return data.filter((item) => new Date(item.date).getTime() > date);
+  return filterData();
 };
 
 const optionHandler = () => {
@@ -147,8 +149,8 @@ const optionHandler = () => {
     if (target.classList.contains("option__item")) {
       optionBtnOrder.textContent = target.textContent;
       orderBy.value = target.dataset.sort;
-      sortData();
-      renderCards(data);
+      const newData = sortData();
+      renderCards(newData);
       optionListOrder.classList.remove("option__list_active");
       for (const elem of optionListOrder.querySelectorAll(".option__item")) {
         if (elem === target) {
@@ -197,11 +199,12 @@ const cityHandler = () => {
         [hash]: target.textContent,
       };
       data = await getData(option);
-      sortData();
+      const newData = sortData();
+
       //Home task #4
       data = filterData();
       //end task #4
-      renderCards(data);
+      renderCards(newData);
       topCityBtn.textContent = target.textContent;
       city.classList.remove("city_active");
     }
@@ -336,8 +339,8 @@ const searchHandler = () => {
       formSearch.search.style.borderColor = "";
 
       data = await getData({ search: textSearch });
-      sortData();
-      renderCards(data);
+      const newData = sortData();
+      renderCards(newData);
       found.innerHTML = ` ${declOfNum(data.length, [
         "вакансия",
         "вакансии",
@@ -356,9 +359,8 @@ const searchHandler = () => {
 //Инициализация
 const init = async () => {
   data = await getData();
-  sortData();
-  data = filterData();
-  renderCards(data);
+  const newData = sortData();
+  renderCards(newData);
 
   optionHandler();
 
